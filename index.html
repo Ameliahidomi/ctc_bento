@@ -249,6 +249,11 @@ function handleDynamicUI() {
   const itemVal = el("menuItem").value;
   const container = el("potMainContainer");
   if (!itemVal) return;
+
+  container.innerHTML = ""; 
+  el("additionalRow").classList.add("hidden"); 
+  el("friesRow").classList.add("hidden");
+
   const itemObj = JSON.parse(itemVal);
   const config = potMainConfigs[Object.keys(potMainConfigs).find(k => restaurant.includes(k))];
   
@@ -260,7 +265,7 @@ function handleDynamicUI() {
       previewImg.src = config.img;
       previewImg.classList.remove("zoomed");
       previewModal.style.display = "flex";
-      lastShownRestaurant = restaurant; // 紀錄已顯示[cite: 6]
+      lastShownRestaurant = restaurant;
     }
   }
 

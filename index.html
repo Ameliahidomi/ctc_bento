@@ -68,7 +68,7 @@ button.secondary{background:#ffb777;color:#000}
   align-items: center;
   justify-content: center;
   gap: 10px;
-  position: rnlative;
+  position: relative;
   z-index: 10;
 }
 .modal-body { 
@@ -109,6 +109,14 @@ button:hover {
   transform: scale(1.05);
   filter: brightness(1.1);
 }
+
+/* 新增：圖片點擊放大縮小樣式 */
+.zoomed {
+  transform: scale(1.5);
+  cursor: zoom-out !important;
+  z-index: 2500;
+  position: relative;
+}
 </style>
 </head>
 <body>
@@ -134,6 +142,22 @@ button:hover {
   </div>
 </div>
 
+<div id="imgPreviewModal" class="modal-overlay" style="display: none;" onclick="closeImgModal()">
+  <div class="modal-content" style="width: 800px; max-width: 95%; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>📋</span> 小滿早餐 菜單圖片 (點擊圖片可放大/縮小)
+    </div>
+    <div class="modal-body" style="text-align: center;">
+      <img src="https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/dkaohsiung01.jpg" style="max-width:100%; margin-bottom:15px; cursor:zoom-in; transition:transform 0.2s;" onclick="toggleZoom(this)" alt="菜單1">
+      <img src="https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/dkaohsiung02.jpg" style="max-width:100%; margin-bottom:15px; cursor:zoom-in; transition:transform 0.2s;" onclick="toggleZoom(this)" alt="菜單2">
+      <img src="https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/dkaohsiung03.jpg" style="max-width:100%; margin-bottom:15px; cursor:zoom-in; transition:transform 0.2s;" onclick="toggleZoom(this)" alt="菜單3">
+    </div>
+    <div class="modal-footer">
+      <button onclick="closeImgModal()" style="padding: 10px 30px; font-size: 16px; font-weight: bold; background: #ff8a4b; border-radius: 10px;">關閉視窗</button>
+    </div>
+  </div>
+</div>
+
 <div class="container">
   <h1>倉庫訂餐網</h1>
 
@@ -148,7 +172,15 @@ button:hover {
   <div id="page-lunch" class="hidden">
     <div class="row"><label>🏪 餐廳名稱</label><select id="restaurant"></select></div>
     <div class="menu-area">
-      <div class="row"><label>🍲 餐點選擇</label><select id="menuItem"></select></div>
+      <div class="row">
+        <label>🍲 餐點選擇</label>
+        <select id="menuItem"></select>
+        <input id="customItem" class="hidden" placeholder="請手動輸入餐點名稱" style="width:250px" />
+      </div>
+      <div class="row hidden" id="priceRow">
+        <label>💰 單價 (元)</label>
+        <input id="customPrice" type="number" placeholder="金額" style="width:100px" />
+      </div>
       <div id="additionalRow" class="row hidden"><label id="additionalLabel">⚙️ 選項</label><div id="potMainContainer"></div></div>
       <div id="friesRow" class="row hidden"><label>🍟 加購薯條</label><select id="addFries"><option value="">不加購</option><option value="加購薯條+$30">加購薯條+$30</option></select></div>
       <div class="row"><label>🧂 調味</label><select id="spice"><option>不加</option><option>微辣</option><option>小辣</option><option>中辣</option><option>加醋</option></select></div>
@@ -175,6 +207,7 @@ const potMainConfigs = {
   "小琉球菜尾": { itemKey: "蛋炒飯", options: ["不要蒜", "不要蔥", "不要洋蔥", "不要胡椒"], label: "🚫 客製需求", isMulti: true },
   "有春鍋燒": { categoryKey: "鍋燒系列", options: ["意麵", "蒸煮麵", "雞絲麵", "冬粉", "白飯", "讚岐烏龍+$10"], label: "🍜 主食選擇" },
   "北方園牛肉拉麵": { categoryKey: "麵類", options: ["拉麵", "細麵", "刀削麵", "冬粉"], label: "🍜 主食選擇" },
+  "灶蹄蹤堂": { categoryKey: "便當類", options: ["正常飯", "正常飯+滷汁", "半飯", "半飯+滷汁", "不飯換菜"], label: "🍜 主食選擇" },
   "鼎新刈包": { categoryKey: "精選刈包", options: ["原味", "薑黃", "全麥", "黑糖"], label: "🌮 刈包選擇", img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Guabao.jpg" }
 };
 
@@ -228,6 +261,25 @@ function handleDynamicUI() {
   el("additionalRow").classList.add("hidden"); 
   el("friesRow").classList.add("hidden");
 
+  // 【核心修改】：判斷是否選中「小滿早餐」
+  if (restaurant.includes("小滿早餐")) {
+    el("menuItem").classList.add("hidden");       // 隱藏下拉選單
+    el("customItem").classList.remove("hidden");    // 顯示手動餐點輸入框
+    el("priceRow").classList.remove("hidden");      // 顯示手動金額輸入框
+    
+    // 如果是切換到此餐廳，自動開啟多圖菜單預覽視窗
+    if (restaurant !== lastShownRestaurant) {
+      el("imgPreviewModal").style.display = "flex"; 
+      lastShownRestaurant = restaurant;
+    }
+    return; // 小滿早餐直接返回，不走後續其他餐廳判定
+  } else {
+    // 切換回其他餐廳時，還原選單顯示並隱藏輸入框
+    el("menuItem").classList.remove("hidden");
+    el("customItem").classList.add("hidden");
+    el("priceRow").classList.add("hidden");
+  }
+
   if (!itemVal) return;
   const itemObj = JSON.parse(itemVal);
   
@@ -261,17 +313,43 @@ function handleDynamicUI() {
 }
 
 el("addLunch").onclick = async () => {
-  const itemObj = JSON.parse(el("menuItem").value); el("addLunch").disabled = true;
+  const restaurant = el("restaurant").value;
+  let itemObj = { cat: "手動輸入", name: "", price: 0 };
+  
+  // 【核心修改】：判斷訂單餐點來源
+  if (restaurant.includes("小滿早餐")) {
+    const customName = el("customItem").value.trim();
+    const customPrice = el("customPrice").value.trim();
+    if (!customName || !customPrice) {
+      alert("請輸入餐點名稱與金額！");
+      return;
+    }
+    itemObj.name = customName;
+    itemObj.price = customPrice;
+  } else {
+    itemObj = JSON.parse(el("menuItem").value);
+  }
+
+  el("addLunch").disabled = true;
   const checkboxes = document.querySelectorAll('input[name="customOption"]:checked');
   let potMainVal = checkboxes.length ? Array.from(checkboxes).map(cb => cb.value).join(', ') : (el("potMain") ? el("potMain").value : "");
   
   await fetch(GOOGLE_WEBAPP_URL, { method: "POST", body: new URLSearchParams({
     action: "add", date: new Date().toISOString().split('T')[0], employee: CURRENT_USER.name, 
-    restaurant: el("restaurant").value, category: itemObj.cat, item: itemObj.name, 
+    restaurant: restaurant, category: itemObj.cat, item: itemObj.name, 
     price: itemObj.price, spice: el("spice").value, qty: el("qty").value, note: el("note").value, potMain: potMainVal
   })});
   
-  alert("訂單已新增"); renderOrders(); el("addLunch").disabled = false;
+  alert("訂單已新增"); 
+  
+  // 新增成功後清除小滿的輸入欄位
+  if (restaurant.includes("小滿早餐")) {
+    el("customItem").value = "";
+    el("customPrice").value = "";
+  }
+  
+  renderOrders(); 
+  el("addLunch").disabled = false;
 };
 
 async function renderOrders() {
@@ -294,9 +372,11 @@ async function deleteOrder(id) {
 el("restaurant").onchange = () => { lastShownRestaurant = ""; populateMenu(el("restaurant").value); };
 el("menuItem").onchange = handleDynamicUI;
 el("toLunch").onclick = () => { el("page-home").classList.add("hidden"); el("page-lunch").classList.remove("hidden"); };
-el("backFromLunch").onclick = () => { el("page-lunch").classList.add("hidden"); el("page-home").classList.remove("hidden"); };
+el("backFromLunch").onclick = () => { el("page-lunch").classList.add("hidden"); el("page-home").classList.hidden = false; };
+
+// 新增與修正：控制圖片預覽視窗與點擊縮放
 function closeImgModal() { el("imgPreviewModal").style.display = "none"; }
-function toggleZoom(e) { e.stopPropagation(); el("previewImg").classList.toggle("zoomed"); }
+function toggleZoom(imgElement) { imgElement.classList.toggle("zoomed"); }
 </script>
 </body>
 </html>

@@ -161,7 +161,7 @@ button:hover {
       <div id="friesRow" class="row hidden"><label>🍟 加購薯條</label><select id="addFries"><option value="">不加購</option><option value="加購薯條+$30">加購薯條+$30</option></select></div>
       <div class="row"><label>🧂 調味</label><select id="spice"><option>不加</option><option>微辣</option><option>小辣</option><option>中辣</option><option>加醋</option></select></div>
       <div class="row"><label>🔢 數量</label><input id="qty" type="number" min="1" value="1" style="width:80px"></div>
-      <div class="row"><label>📝 備註</label><input id="note" placeholder="例: 少醬、不要蔥"></div>
+      <div class="row"><label>📝 備註</label><input id="note" placeholder="例: 少醬、不要蔥...."></div>
       <div class="center"><button id="addLunch">➕ 新增訂單</button><button id="backFromLunch" class="secondary">⬅️ 回上一頁</button></div>
     </div>
   </div>
@@ -175,22 +175,23 @@ button:hover {
 <script>
 const GOOGLE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyznRRA7TJ28X9TtMU_0r2qhXUemySqgICb6kI-Jd2YA0zzhJxEK6OQr1JOkyL7YtXK/exec";
 
-// 修正設定鍵值，改用更通用的關鍵字比對
 const potMainConfigs = {
   "老江紅茶": { categoryKey: "套餐組合", options: ["紅茶冰-$81", "冷泡茶-$81", "小杯奶茶-$89", "中杯奶茶-$106"], label: "🥤 套餐飲料", hasFries: true },
   "老李小火鍋": { categoryKey: "鍋物湯底", options: ["白飯", "意麵", "科學麵", "冬粉", "蒸煮麵", "王子麵"], label: "🍜 主食選擇" },
   "北平京廚": { categoryKey: "麵食類", options: ["刀削麵", "細麵"], label: "🍜 麵體選擇" },
   "小琉球菜尾": { itemKey: "蛋炒飯", options: ["不要蒜", "不要蔥", "不要洋蔥", "不要胡椒"], label: "🚫 客製需求", isMulti: true },
   "有春鍋燒": { categoryKey: "鍋燒系列", options: ["意麵", "蒸煮麵", "雞絲麵", "冬粉", "白飯", "讚岐烏龍+$10"], label: "🍜 主食選擇" },
-  "北方園牛肉拉麵": { categoryKey: "麵類", options: ["拉麵", "細麵", "刀削麵", "冬粉"], label: "🍜 主死選擇" },
+  "北方園牛肉拉麵": { categoryKey: "麵類", options: ["拉麵", "細麵", "刀削麵", "冬粉"], label: "🍜 主食選擇" },
   "灶蹄蹤堂": { categoryKey: "便當類", options: ["正常飯", "正常飯+滷汁", "半飯", "半飯+滷汁", "不飯換菜"], label: "🍜 主食選擇" },
   "五花馬水餃館": { categoryKey: "麵食類", options: ["白麵", "蔬菜麵"], label: "🍜 主食選擇" },
   "吃得巧海苔飯捲": { categoryKey: "口味", options: ["正常", "換拾穀+$10", "加菜+$10", "加飯+$15", "加肉+$15"], label: "🍜 份量加購" },
   "水粉嬤便當": { categoryKey: "便當系列", options: ["正常", "半飯", "不飯"], label: "🍜 主食選擇" },
-  "鼎新刈包": { categoryKey: "精選刈包", options: ["原味", "薑黃", "全麥", "黑糖"], label: "🌮 刈包選擇", img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Guabao.jpg" }
+  "鼎新刈包": { categoryKey: "精選刈包", options: ["原味", "薑黃", "全麥", "黑糖"], label: "🌮 刈包選擇", img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Guabao.jpg" },
+  "菱果菱果": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/cocomihana.jpg" },
+  "豆坊": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Doufun.jpg" }
 };
 
-// 💡 萬客臨多張菜單網址獨立配置
+// 萬客臨多張菜單配置
 const specialRestaurantImages = {
   "萬客臨彩色麵疙瘩": [
     "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/scontent01.jpg",
@@ -210,17 +211,42 @@ el("btnLogin").onclick = async () => {
     const res = await fetch(`${GOOGLE_WEBAPP_URL}?action=getEmployees`);
     const data = await res.json();
     const found = data.find(e => String(e.id) === empId);
-    if (found) { CURRENT_USER = found; el("page-login").classList.add("hidden"); el("page-home").classList.remove("hidden"); el("welcome").textContent = `歡迎 ${found.name}`; loadMenus(); renderOrders(); }
+    if (found) { 
+      CURRENT_USER = found; 
+      el("page-login").classList.add("hidden"); 
+      el("page-home").classList.remove("hidden"); 
+      el("welcome").textContent = `歡迎 ${found.name}`; 
+      renderOrders(); 
+    }
     else { alert("工號錯誤"); el("btnLogin").disabled = false; }
   } catch (e) { alert("系統錯誤"); el("btnLogin").disabled = false; }
 };
 
-async function loadMenus() {
-  const res = await fetch(`${GOOGLE_WEBAPP_URL}?action=getMenus`);
-  MENUS = await res.json();
-  const sel = el("restaurant"); sel.innerHTML = "";
-  Object.keys(MENUS).forEach(r => { const opt = document.createElement("option"); opt.value = r; opt.textContent = r; sel.appendChild(opt); });
-  if (sel.options.length > 0) populateMenu(sel.value);
+async function loadMenus(mode) {
+  const sel = el("restaurant");
+  sel.innerHTML = "<option disabled selected>🔄 菜單更新中，請稍候...</option>";
+  el("menuItem").innerHTML = "";
+  
+  const actionName = (mode === "tea") ? "getTeaMenus" : "getMenus";
+  
+  try {
+    const res = await fetch(`${GOOGLE_WEBAPP_URL}?action=${actionName}`);
+    MENUS = await res.json();
+    sel.innerHTML = "";
+    
+    Object.keys(MENUS).forEach(r => { 
+      const opt = document.createElement("option"); 
+      opt.value = r; 
+      opt.textContent = r; 
+      sel.appendChild(opt); 
+    });
+    
+    if (sel.options.length > 0) {
+      populateMenu(sel.value);
+    }
+  } catch (e) {
+    sel.innerHTML = "<option disabled>❌ 載入失敗，請重新切換試試</option>";
+  }
 }
 
 function populateMenu(restaurant) {
@@ -238,13 +264,6 @@ function populateMenu(restaurant) {
   handleDynamicUI();
 }
 
-function resetCommonFormFields() {
-  el("qty").value = "1";
-  el("note").value = "";
-  el("spice").selectedIndex = 0;
-  el("addFries").value = "";
-}
-
 function handleDynamicUI() {
   const restaurant = el("restaurant").value; 
   const itemVal = el("menuItem").value;
@@ -254,33 +273,40 @@ function handleDynamicUI() {
   el("additionalRow").classList.add("hidden"); 
   el("friesRow").classList.add("hidden");
 
-  // 💡 【核心修改】：萬客臨彩色麵疙瘩切換時，直接用新分頁開啟多張圖片
-  if (restaurant.includes("萬客臨彩色麵疙瘩")) {
-    el("menuItem").classList.add("hidden");
-    el("customItem").classList.remove("hidden");
-    el("priceRow").classList.remove("hidden");
+  // 💡 萬客臨與豆坊：切換為手動自行輸入，並用瀏覽器新分頁開圖
+  if (restaurant.includes("萬客臨彩色麵疙瘩") || restaurant.includes("豆坊")) {
+    el("menuItem").classList.add("hidden");       
+    el("customItem").classList.remove("hidden");    
+    el("priceRow").classList.remove("hidden");      
     
     if (restaurant !== lastShownRestaurant) {
-      const images = specialRestaurantImages["萬客臨彩色麵疙瘩"];
-      if (images) {
-        images.forEach(url => window.open(url, '_blank')); // 自動在瀏覽器新分頁開啟所有菜單圖
+      if (restaurant.includes("萬客臨彩色麵疙瘩")) {
+        const images = specialRestaurantImages["萬客臨彩色麵疙瘩"];
+        if (images) {
+          images.forEach(url => window.open(url, '_blank'));
+        }
+      } else if (restaurant.includes("豆坊")) {
+        const config = potMainConfigs["豆坊"];
+        if (config && config.img) {
+          window.open(config.img, '_blank');
+        }
       }
       lastShownRestaurant = restaurant;
     }
-    return;
+    return; 
   } else {
     el("menuItem").classList.remove("hidden");
     el("customItem").classList.add("hidden");
     el("priceRow").classList.add("hidden");
   }
 
-  if (!itemVal) return;
+  if (!itemVal || itemVal.startsWith("🔄")) return; 
   const itemObj = JSON.parse(itemVal);
   
   const configKey = Object.keys(potMainConfigs).find(k => restaurant.includes(k));
   const config = potMainConfigs[configKey];
 
-  // 💡 【核心修改】：其他有單張圖片配置的餐廳（如鼎新刈包），也改用瀏覽器新分頁打開
+  // 其他一般配圖餐廳，同樣改為新分頁開啟
   if (config && config.img && restaurant !== lastShownRestaurant) {
     window.open(config.img, '_blank');
     lastShownRestaurant = restaurant;
@@ -304,11 +330,23 @@ function handleDynamicUI() {
   }
 }
 
+function resetFormInputs() {
+  el("customItem").value = "";
+  el("customPrice").value = "";
+  el("qty").value = "1";
+  el("note").value = "";
+  el("spice").selectedIndex = 0;
+  el("addFries").value = "";
+}
+
 el("addLunch").onclick = async () => {
   const restaurant = el("restaurant").value;
-  let itemObj = { cat: "手動輸入", name: "", price: 0 };
+  if(restaurant.startsWith("🔄")) return; 
   
-  if (restaurant.includes("萬客臨彩色麵疙瘩")) {
+  let itemObj = { cat: "手動輸入", name: "", price: 0 };
+  const isCustomInput = restaurant.includes("萬客臨彩色麵疙瘩") || restaurant.includes("豆坊");
+  
+  if (isCustomInput) {
     const customName = el("customItem").value.trim();
     const customPrice = el("customPrice").value.trim();
     if (!customName || !customPrice) {
@@ -332,13 +370,7 @@ el("addLunch").onclick = async () => {
   })});
   
   alert("訂單已新增"); 
-  
-  if (restaurant.includes("萬客臨彩色麵疙瘩")) {
-    el("customItem").value = "";
-    el("customPrice").value = "";
-  }
-  resetCommonFormFields();
-  
+  resetFormInputs();
   renderOrders(); 
   el("addLunch").disabled = false;
 };
@@ -355,7 +387,7 @@ async function renderOrders() {
         const dd = String(d.getDate()).padStart(2, '0');
         formattedDate = `${mm}/${dd}`;
       } else {
-        formattedDate = o.date;
+        formattedDate = o.date; 
       }
     }
     
@@ -382,15 +414,26 @@ async function deleteOrder(id) {
   renderOrders();
 }
 
-el("restaurant").onchange = () => { 
-  lastShownRestaurant = ""; 
-  resetCommonFormFields();
-  populateMenu(el("restaurant").value); 
+el("restaurant").onchange = () => { lastShownRestaurant = ""; populateMenu(el("restaurant").value); };
+el("menuItem").onchange = handleDynamicUI;
+
+el("toLunch").onclick = () => { 
+  el("page-home").classList.add("hidden"); 
+  el("page-lunch").classList.remove("hidden"); 
+  lastShownRestaurant = "";
+  resetFormInputs();
+  loadMenus("lunch"); 
 };
 
-el("menuItem").onchange = handleDynamicUI;
-el("toLunch").onclick = () => { el("page-home").classList.add("hidden"); el("page-lunch").classList.remove("hidden"); };
-el("backFromLunch").onclick = () => { el("page-lunch").classList.add("hidden"); el("page-home").classList.remove("hidden"); }; 
+el("toTea").onclick = () => { 
+  el("page-home").classList.add("hidden"); 
+  el("page-lunch").classList.remove("hidden"); 
+  lastShownRestaurant = "";
+  resetFormInputs();
+  loadMenus("tea"); 
+};
+
+el("backFromLunch").onclick = () => { el("page-lunch").classList.add("hidden"); el("page-home").classList.remove("hidden"); };
 </script>
 </body>
 </html>

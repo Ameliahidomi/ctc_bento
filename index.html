@@ -175,6 +175,7 @@ button:hover {
 <script>
 const GOOGLE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyznRRA7TJ28X9TtMU_0r2qhXUemySqgICb6kI-Jd2YA0zzhJxEK6OQr1JOkyL7YtXK/exec";
 
+// 💡 修正後：將一般餐廳與多重分類的圓DoDo整合
 const potMainConfigs = {
   "老江紅茶": { categoryKey: "套餐組合", options: ["紅茶冰-$81", "冷泡茶-$81", "小杯奶茶-$89", "中杯奶茶-$106"], label: "🥤 套餐飲料", hasFries: true },
   "老李小火鍋": { categoryKey: "鍋物湯底", options: ["白飯", "意麵", "科學麵", "冬粉", "蒸煮麵", "王子麵"], label: "🍜 主食選擇" },
@@ -187,15 +188,24 @@ const potMainConfigs = {
   "吃得巧海苔飯捲": { categoryKey: "口味", options: ["正常", "換拾穀+$10", "加菜+$10", "加飯+$15", "加肉+$15"], label: "🍜 份量加購" },
   "水粉嬤便當": { categoryKey: "便當系列", options: ["正常", "半飯", "不飯"], label: "🍜 主食選擇" },
   "鼎新刈包": { categoryKey: "精選刈包", options: ["原味", "薑黃", "全麥", "黑糖"], label: "🌮 刈包選擇", img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Guabao.jpg" },
-  "菱果菱果": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/cocomihana.jpg" },
-  "豆坊": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Doufun.jpg" }
+  "豆坊": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Doufun.jpg" },
+  
+  // 💡 將圓DoDo合併為單一Key，並改用陣列結構支援多種分類
+  "圓DoDo": [
+    { categoryKey: "沙拉類", options: ["凱薩", "胡麻", "和風"], label: "🥗 醬料選擇" },
+    { categoryKey: "鍋燒類", options: ["意麵", "冬粉", "烏龍", "科學麵"], label: "🍜 主食選擇" },
+    { categoryKey: "飲品類", options: ["初鹿鮮奶+$10", "珍珠+$5", "小芋圓+$5", "仙草+$5"], label: "🥤加料區" }
+  ]
 };
 
-// 萬客臨多張菜單配置
+// 多張菜單配置
 const specialRestaurantImages = {
+  "圓DoDo": [
+    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/DoDo01.jpg",
+    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/DoDo02.jpg"
+  ],
   "萬客臨彩色麵疙瘩": [
-    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/scontent01.jpg",
-    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/scontent02.jpg"
+    // 如果未來萬客臨有網址，可以加在這裡
   ]
 };
 
@@ -273,25 +283,26 @@ function handleDynamicUI() {
   el("additionalRow").classList.add("hidden"); 
   el("friesRow").classList.add("hidden");
 
-  // 💡 萬客臨與豆坊：切換為手動自行輸入，並用瀏覽器新分頁開圖
+  // 💡 修正 1：只要切換餐廳，且該餐廳有在 specialRestaurantImages 內，就開啟新分頁（解決圓DoDo不開圖問題）
+  if (restaurant !== lastShownRestaurant) {
+    const specialImages = specialRestaurantImages[Object.keys(specialRestaurantImages).find(k => restaurant.includes(k))];
+    if (specialImages && specialImages.length > 0) {
+      specialImages.forEach(url => window.open(url, '_blank'));
+    }
+    lastShownRestaurant = restaurant;
+  }
+
+  // 萬客臨與豆坊：切換為手動自行輸入
   if (restaurant.includes("萬客臨彩色麵疙瘩") || restaurant.includes("豆坊")) {
     el("menuItem").classList.add("hidden");       
     el("customItem").classList.remove("hidden");    
     el("priceRow").classList.remove("hidden");      
     
-    if (restaurant !== lastShownRestaurant) {
-      if (restaurant.includes("萬客臨彩色麵疙瘩")) {
-        const images = specialRestaurantImages["萬客臨彩色麵疙瘩"];
-        if (images) {
-          images.forEach(url => window.open(url, '_blank'));
-        }
-      } else if (restaurant.includes("豆坊")) {
-        const config = potMainConfigs["豆坊"];
-        if (config && config.img) {
-          window.open(config.img, '_blank');
-        }
+    if (restaurant.includes("豆坊")) {
+      const config = potMainConfigs["豆坊"];
+      if (config && config.img) {
+        window.open(config.img, '_blank');
       }
-      lastShownRestaurant = restaurant;
     }
     return; 
   } else {
@@ -304,29 +315,38 @@ function handleDynamicUI() {
   const itemObj = JSON.parse(itemVal);
   
   const configKey = Object.keys(potMainConfigs).find(k => restaurant.includes(k));
-  const config = potMainConfigs[configKey];
+  let configData = potMainConfigs[configKey];
+
+  if (!configData) return;
 
   // 其他一般配圖餐廳，同樣改為新分頁開啟
-  if (config && config.img && restaurant !== lastShownRestaurant) {
-    window.open(config.img, '_blank');
-    lastShownRestaurant = restaurant;
+  if (configData.img && !Array.isArray(configData)) {
+    window.open(configData.img, '_blank');
   }
 
   const cleanCat = (itemObj.cat || "").replace(/\s+/g, '');
-  const match = config && (
-    (config.categoryKey && cleanCat.includes(config.categoryKey)) || 
-    (config.itemKey && itemObj.name.includes(config.itemKey))
-  );
+  let targetConfig = null;
 
-  if (match) {
-    el("additionalLabel").textContent = config.label;
-    if (config.isMulti) { 
-      container.innerHTML = config.options.map(o => `<label style="margin-right:8px"><input type="checkbox" name="customOption" value="${o}"> ${o}</label>`).join(''); 
+  // 💡 修正 2：如果設定是陣列（例如圓DoDo），過濾並找出符合當前餐點分類的那一筆設定
+  if (Array.isArray(configData)) {
+    targetConfig = configData.find(cfg => cfg.categoryKey && cleanCat.includes(cfg.categoryKey));
+  } else {
+    // 一般單一設定的餐廳
+    const match = (configData.categoryKey && cleanCat.includes(configData.categoryKey)) || 
+                  (configData.itemKey && itemObj.name.includes(configData.itemKey));
+    if (match) targetConfig = configData;
+  }
+
+  // 💡 修正 3：如果找到對應的欄位設定，將其渲染至畫面上（解決沙拉、鍋燒、飲品欄位不出現問題）
+  if (targetConfig) {
+    el("additionalLabel").textContent = targetConfig.label;
+    if (targetConfig.isMulti) { 
+      container.innerHTML = targetConfig.options.map(o => `<label style="margin-right:8px"><input type="checkbox" name="customOption" value="${o}"> ${o}</label>`).join(''); 
     } else { 
-      container.innerHTML = `<select id="potMain">${config.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`; 
+      container.innerHTML = `<select id="potMain">${targetConfig.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`; 
     }
     el("additionalRow").classList.remove("hidden");
-    if (config.hasFries) el("friesRow").classList.remove("hidden");
+    if (targetConfig.hasFries) el("friesRow").classList.remove("hidden");
   }
 }
 

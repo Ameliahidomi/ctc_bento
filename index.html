@@ -175,7 +175,7 @@ button:hover {
 <script>
 const GOOGLE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyznRRA7TJ28X9TtMU_0r2qhXUemySqgICb6kI-Jd2YA0zzhJxEK6OQr1JOkyL7YtXK/exec";
 
-// 💡 修正後：將一般餐廳與多重分類的圓DoDo整合
+// 將一般餐廳與多重分類的圓DoDo整合
 const potMainConfigs = {
   "老江紅茶": { categoryKey: "套餐組合", options: ["紅茶冰-$81", "冷泡茶-$81", "小杯奶茶-$89", "中杯奶茶-$106"], label: "🥤 套餐飲料", hasFries: true },
   "老李小火鍋": { categoryKey: "鍋物湯底", options: ["白飯", "意麵", "科學麵", "冬粉", "蒸煮麵", "王子麵"], label: "🍜 主食選擇" },
@@ -190,7 +190,7 @@ const potMainConfigs = {
   "鼎新刈包": { categoryKey: "精選刈包", options: ["原味", "薑黃", "全麥", "黑糖"], label: "🌮 刈包選擇", img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Guabao.jpg" },
   "豆坊": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Doufun.jpg" },
   
-  // 💡 將圓DoDo合併為單一Key，並改用陣列結構支援多種分類
+  // 將圓DoDo合併為單一Key，並改用陣列結構支援多種分類
   "圓DoDo": [
     { categoryKey: "沙拉類", options: ["凱薩", "胡麻", "和風"], label: "🥗 醬料選擇" },
     { categoryKey: "鍋燒類", options: ["意麵", "冬粉", "烏龍", "科學麵"], label: "🍜 主食選擇" },
@@ -283,11 +283,41 @@ function handleDynamicUI() {
   el("additionalRow").classList.add("hidden"); 
   el("friesRow").classList.add("hidden");
 
-  // 💡 修正 1：只要切換餐廳，且該餐廳有在 specialRestaurantImages 內，就開啟新分頁（解決圓DoDo不開圖問題）
+  // 💡 修正：切換餐廳時，若有多張菜單，全部打包在同一個新分頁中，可往下捲動瀏覽
   if (restaurant !== lastShownRestaurant) {
     const specialImages = specialRestaurantImages[Object.keys(specialRestaurantImages).find(k => restaurant.includes(k))];
     if (specialImages && specialImages.length > 0) {
-      specialImages.forEach(url => window.open(url, '_blank'));
+      // 串接所有圖片標籤
+      const imgTags = specialImages.map(url => `<img src="${url}" style="max-width:100%; display:block; margin:0 auto 20px auto; box-shadow:0 4px 10px rgba(0,0,0,0.15); border-radius:8px;">`).join('');
+      
+      // 組合新分頁 HTML
+      const pageContent = `
+        <html>
+        <head>
+          <title>${restaurant} 菜單瀏覽</title>
+          <style>
+            body { background: #fff4ea; margin: 0; padding: 30px 15px; font-family: sans-serif; text-align: center; }
+            .container { max-width: 800px; margin: 0 auto; }
+            h2 { color: #333; margin-bottom: 25px; font-size: 22px; }
+            .tip { color: #666; font-size: 14px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>📋 ${restaurant} — 菜單內容</h2>
+            <p class="tip">💡 提示：可往下滑動查看完整菜單</p>
+            ${imgTags}
+          </div>
+        </body>
+        </html>
+      `;
+      
+      // 開啟單一空白分頁並寫入 HTML
+      const menuWindow = window.open();
+      if (menuWindow) {
+        menuWindow.document.write(pageContent);
+        menuWindow.document.close();
+      }
     }
     lastShownRestaurant = restaurant;
   }
@@ -327,7 +357,7 @@ function handleDynamicUI() {
   const cleanCat = (itemObj.cat || "").replace(/\s+/g, '');
   let targetConfig = null;
 
-  // 💡 修正 2：如果設定是陣列（例如圓DoDo），過濾並找出符合當前餐點分類的那一筆設定
+  // 如果設定是陣列（例如圓DoDo），過濾並找出符合當前餐點分類的那一筆設定
   if (Array.isArray(configData)) {
     targetConfig = configData.find(cfg => cfg.categoryKey && cleanCat.includes(cfg.categoryKey));
   } else {
@@ -337,7 +367,7 @@ function handleDynamicUI() {
     if (match) targetConfig = configData;
   }
 
-  // 💡 修正 3：如果找到對應的欄位設定，將其渲染至畫面上（解決沙拉、鍋燒、飲品欄位不出現問題）
+  // 如果找到對應的欄位設定，將其渲染至畫面上
   if (targetConfig) {
     el("additionalLabel").textContent = targetConfig.label;
     if (targetConfig.isMulti) { 

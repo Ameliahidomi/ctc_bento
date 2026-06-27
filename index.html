@@ -190,20 +190,21 @@ const potMainConfigs = {
   "鼎新刈包": { categoryKey: "精選刈包", options: ["原味", "薑黃", "全麥", "黑糖"], label: "🌮 刈包選擇", img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Guabao.jpg" },
   "豆坊": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Doufun.jpg" },
   "江鳥紅": { categoryKey: "鍋燒系列", options: ["冬粉", "飯", "意麵+$10", "拉麵+$10"], label: "🍜 主食選擇" },
+  "三色麵疙瘩": { categoryKey: "湯底", options: ["麵疙瘩", "意麵", "雞絲", "冬粉", "泡飯", "蒸煮麵", "王子麵"], label: "🍜 主食選擇" },
+  "呷飽飽創意鍋燒": { categoryKey: "鍋燒湯底", options: ["意麵", "雞絲", "烏龍", "冬粉", "飯", "蒸煮麵", "蛋黃麵"], label: "🍜 主食選擇" },
   
-  // 將圓DoDo合併為單一Key，並改用陣列結構支援多種分類
-  "圓DoDo": [
-    { categoryKey: "沙拉類", options: ["凱薩", "胡麻", "和風"], label: "🥗 醬料選擇" },
-    { categoryKey: "鍋燒類", options: ["意麵", "冬粉", "烏龍", "科學麵"], label: "🍜 主食選擇" },
-    { categoryKey: "飲品類", options: ["不加", "初鹿鮮奶+$10", "珍珠+$5", "小芋圓+$5", "仙草+$5"], label: "🥤加料區" }
+  // 將某餐廳合併為單一Key，並改用陣列結構支援多種分類
+  "囍廣港式燒臘": [
+    { itemKey: "雙拼便當", options: ["燒鴨", "油雞", "香腸", "叉燒", "脆皮豬"], label: "🍜主食五選二" },
+    { categoryKey: "港式蛋炒飯", options: ["不加", "豬肉", "蝦仁", "牛肉"], label: "🍜 加料+20" }
   ]
 };
 
 // 多張菜單配置
 const specialRestaurantImages = {
-  "圓DoDo": [
-    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/DoDo01.jpg",
-    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/DoDo02.jpg"
+  "囍廣港式燒臘": [
+    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/dsorder01.jpg",
+    "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/dsorder02.jpg"
   ],
   "江鳥紅": [
      "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/jiangniaohong.jpg"
@@ -358,9 +359,13 @@ function handleDynamicUI() {
   const cleanCat = (itemObj.cat || "").replace(/\s+/g, '');
   let targetConfig = null;
 
-  // 如果設定是陣列（例如圓DoDo），過濾並找出符合當前餐點分類的那一筆設定
+// 如果設定是陣列，支援透過 itemKey (餐點名) 或 categoryKey (分類) 進行精準/模糊篩選
   if (Array.isArray(configData)) {
-    targetConfig = configData.find(cfg => cfg.categoryKey && cleanCat.includes(cfg.categoryKey));
+    targetConfig = configData.find(cfg => {
+      if (cfg.itemKey && itemObj.name.includes(cfg.itemKey)) return true;
+      if (cfg.categoryKey && cleanCat.includes(cfg.categoryKey)) return true;
+      return false;
+    });
   } else {
     // 一般單一設定的餐廳
     const match = (configData.categoryKey && cleanCat.includes(configData.categoryKey)) || 

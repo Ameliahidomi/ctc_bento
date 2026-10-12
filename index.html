@@ -201,8 +201,8 @@ const potMainConfigs = {
   "五花馬水餃館": { categoryKey: "麵食類", options: ["白麵", "蔬菜麵"], label: "🍜 主食選擇" },
   "吃得巧海苔飯捲": { categoryKey: "口味", options: ["正常", "換拾穀+$10", "加菜+$10", "加飯+$15", "加肉+$15"], label: "🍜 份量加購" },
   "水粉嬤便當": { categoryKey: "便當系列", options: ["正常", "半飯", "不飯"], label: "🍜 主食選擇" },
-  "豆坊": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/Doufun.jpg" },
-  "光頭龍蝦沙拉堡": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctcbento/main/Lobster roll.jpg" },
+  "鼎新刈包": { categoryKey: "精選刈包", options: ["原味", "薑黃", "全麥", "黑糖"], label: "🌮 刈包選擇", img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Guabao.jpg" },
+  "豆坊": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/Doufun.jpg" },
   "江鳥紅": { categoryKey: "鍋燒系列", options: ["冬粉", "飯", "意麵+$10", "拉麵+$10"], label: "🍜 主食選擇" },
   "朵栗兒涼麵": { img: "https://raw.githubusercontent.com/Ameliahidomi/ctc_bento/main/dolier.jpg" },
   "三色麵疙瘩": { categoryKey: "湯底", options: ["麵疙瘩", "意麵", "雞絲", "冬粉", "泡飯", "蒸煮麵", "王子麵"], label: "🍜 主食選擇" },
@@ -247,14 +247,12 @@ const el = id => document.getElementById(id);
 
 el("closeNotice").onclick = () => { el("noticeModal").style.display = "none"; el("page-login").classList.remove("hidden"); };
 
-// 【優化登入】使用本機快取與非同步並行加載
 el("btnLogin").onclick = async () => {
   const empId = el("empId").value.trim(); if (!empId) return;
   el("btnLogin").disabled = true;
   el("btnLogin").textContent = "登入中...";
 
   try {
-    // 優先讀取 LocalStorage 快取
     const cached = JSON.parse(localStorage.getItem("EMP_CACHE") || "[]");
     let found = cached.find(e => String(e.id) === empId);
 
@@ -274,7 +272,6 @@ el("btnLogin").onclick = async () => {
       el("page-home").classList.remove("hidden"); 
       el("welcome").textContent = `歡迎 ${found.name}`; 
 
-      // 並行預載訂單與菜單，大幅提升進入速度
       Promise.all([
         renderOrders(),
         loadMenus("lunch")
@@ -329,8 +326,6 @@ function getRestaurantImages(restaurant) {
 
 function triggerRestaurantChange(restaurant) {
   populateMenu(restaurant);
-  
-  // 優化：控制圖片按鈕顯示，取消彈窗阻塞
   const imgs = getRestaurantImages(restaurant);
   const btnView = el("btnViewMenuImg");
   if (imgs && imgs.length > 0) {
@@ -394,7 +389,7 @@ function handleDynamicUI() {
   el("additionalRow").classList.add("hidden"); 
   el("friesRow").classList.add("hidden");
 
-  if (restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("光頭龍蝦沙拉堡")) {
+  if (restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("萬客臨")) {
     el("menuItem").classList.add("hidden");       
     el("customItem").classList.remove("hidden");    
     el("priceRow").classList.remove("hidden");      
@@ -494,6 +489,7 @@ el("cancelEdit").onclick = () => {
   handleDynamicUI();
 };
 
+// 【核心修改】嚴格檢查後端回應，杜絕「假裝寫入成功」的漏洞
 el("addLunch").onclick = async () => {
   const restaurant = el("restaurant").value;
   if(restaurant.startsWith("🔄")) return; 
@@ -514,7 +510,6 @@ el("addLunch").onclick = async () => {
     itemObj = JSON.parse(el("menuItem").value);
   }
 
-  el("addLunch").disabled = true;
   const checkboxes = document.querySelectorAll('input[name="customOption"]:checked');
   let potMainVal = "";
   if (checkboxes.length) {
@@ -524,7 +519,6 @@ el("addLunch").onclick = async () => {
     const m2 = el("potMain2").value;
     if (!m1 || !m2) {
       alert("請務必選擇兩種口味！");
-      el("addLunch").disabled = false;
       return;
     }
     potMainVal = `${m1} + ${m2}`;
@@ -533,6 +527,8 @@ el("addLunch").onclick = async () => {
   }  
   
   const isEdit = EDIT_ORDER_ID !== null;
+  el("addLunch").disabled = true;
+  el("addLunch").textContent = isEdit ? "💾 儲存修改中..." : "➕ 新增送出中...";
 
   try {
     if (isEdit) {
@@ -546,7 +542,7 @@ el("addLunch").onclick = async () => {
       });
     }
 
-    await fetch(GOOGLE_WEBAPP_URL, { 
+    const response = await fetch(GOOGLE_WEBAPP_URL, { 
       method: "POST", 
       body: new URLSearchParams({
         action: "add", 
@@ -563,52 +559,65 @@ el("addLunch").onclick = async () => {
       })
     });
     
-    alert(isEdit ? "訂單已更新完成！" : "訂單已新增"); 
+    // 嚴格向後端確認是否成功寫入
+    if (!response.ok) {
+      throw new Error("伺服器回應異常");
+    }
+
+    alert(isEdit ? "訂單已更新完成！" : "訂單已成功送出並記錄！"); 
     resetFormInputs();
-    renderOrders(); 
+    
+    // 強制從 Google Sheet 重新抓取最新訂單，確保資料真正落地
+    await renderOrders(); 
+
   } catch (err) {
-    alert("操作失敗，請稍後再試！");
+    alert("⚠️ 網路連線或伺服器寫入失敗，您的訂單可能未成功送出！請檢查網路後再試一次。");
   } finally {
     el("addLunch").disabled = false;
+    el("addLunch").textContent = isEdit ? "💾 儲存修改" : "➕ 新增訂單";
   }
 };
 
 async function renderOrders() {
-  const res = await fetch(`${GOOGLE_WEBAPP_URL}?action=getOrders&employee=${encodeURIComponent(CURRENT_USER.name)}`);
-  const data = await res.json();
-  MY_ORDERS_DATA = data; 
-  
-  el("ordersList").innerHTML = data.map((o, idx) => {
-    let formattedDate = "";
-    if (o.date) {
-      const d = new Date(o.date);
-      if (!isNaN(d.getTime())) {
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        formattedDate = `${mm}/${dd}`;
-      } else {
-        formattedDate = o.date; 
-      }
-    }
+  try {
+    const res = await fetch(`${GOOGLE_WEBAPP_URL}?action=getOrders&employee=${encodeURIComponent(CURRENT_USER.name)}`);
+    const data = await res.json();
+    MY_ORDERS_DATA = data; 
     
-    return `
-    <div class="order-item">
-      <div><strong>#${idx+1} ${formattedDate ? formattedDate + ' ' : ''}${o.restaurant} - ${o.item}</strong></div>
-      <div class="small">
-        分類: ${o.category || "未分類"} | 
-        日期: ${o.date ? o.date.split('T')[0] : "無"} | 
-        數量: ${o.qty || 1} | 
-        價格: ${o.price || 0} 元 | 
-        調味: ${o.spice || "不加"}
-        ${o.potMain ? ' | 選項: ' + o.potMain : ''}
-      </div>
-      ${o.note ? `<div class="small" style="color:#888;">備註: ${o.note}</div>` : ''}
-      <div class="btn-group">
-        <button class="edit-btn" onclick="startEditOrder('${o.id}')">✏️ 修改</button>
-        <button class="delete-btn" onclick="deleteOrder('${o.id}')">🗑️ 刪除</button>
-      </div>
-    </div>`;
-  }).join('');
+    el("ordersList").innerHTML = data.map((o, idx) => {
+      let formattedDate = "";
+      if (o.date) {
+        const d = new Date(o.date);
+        if (!isNaN(d.getTime())) {
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          formattedDate = `${mm}/${dd}`;
+        } else {
+          formattedDate = o.date; 
+        }
+      }
+      
+      return `
+      <div class="order-item">
+        <div><strong>#${idx+1} ${formattedDate ? formattedDate + ' ' : ''}${o.restaurant} - ${o.item}</strong></div>
+        <div class="small">
+          分類: ${o.category || "未分類"} | 
+          日期: ${o.date ? o.date.split('T')[0] : "無"} | 
+          數量: ${o.qty || 1} | 
+          價格: ${o.price || 0} 元 | 
+          調味: ${o.spice || "不加"}
+          ${o.potMain ? ' | 選項: ' + o.potMain : ''}
+        </div>
+        ${o.note ? `<div class="small" style="color:#888;">備註: ${o.note}</div>` : ''}
+        <div class="btn-group">
+          <button class="edit-btn" onclick="startEditOrder('${o.id}')">✏️ 修改</button>
+          <button class="delete-btn" onclick="deleteOrder('${o.id}')">🗑️ 刪除</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el("ordersList").innerHTML = `<p style="color:red; font-size:14px;">⚠️ 無法即時載入訂單清單，請重新整理頁面確認。</p>`;
+  }
 }
 
 async function startEditOrder(id) {

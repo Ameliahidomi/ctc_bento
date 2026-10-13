@@ -641,7 +641,7 @@ async function startEditOrder(id) {
   
   populateMenu(order.restaurant);
 
-  const isCustomInput = order.restaurant.includes("月宮寶盒烤肉飯") || order.restaurant.includes("豆坊");
+  const isCustomInput = order.restaurant.includes("月宮寶盒烤肉飯") || order.restaurant.includes("光頭龍蝦沙拉堡");
   if (isCustomInput) {
     el("customItem").value = order.item;
     el("customPrice").value = order.price;

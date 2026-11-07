@@ -267,14 +267,12 @@ const el = id => document.getElementById(id);
 
 el("closeNotice").onclick = () => { el("noticeModal").style.display = "none"; el("page-login").classList.remove("hidden"); };
 
-// 【優化登入】使用本機快取與非同步並行加載
 el("btnLogin").onclick = async () => {
   const empId = el("empId").value.trim(); if (!empId) return;
   el("btnLogin").disabled = true;
   el("btnLogin").textContent = "登入中...";
 
   try {
-    // 優先讀取 LocalStorage 快取
     const cached = JSON.parse(localStorage.getItem("EMP_CACHE") || "[]");
     let found = cached.find(e => String(e.id) === empId);
 
@@ -294,7 +292,6 @@ el("btnLogin").onclick = async () => {
       el("page-home").classList.remove("hidden"); 
       el("welcome").textContent = `歡迎 ${found.name}`; 
 
-      // 並行預載訂單與菜單，大幅提升進入速度
       Promise.all([
         renderOrders(),
         loadMenus("lunch")
@@ -336,9 +333,12 @@ async function loadMenus(mode) {
 }
 
 function getRestaurantImages(restaurant) {
-  const specialKey = Object.keys(specialRestaurantImages).find(k => restaurant.includes(k));
+  // 自動去除日期前綴 (如 11/18 ) 進行圖片對應
+  const cleanName = restaurant.replace(/^\d{1,2}\/\d{1,2}\s*/, '').trim();
+  
+  const specialKey = Object.keys(specialRestaurantImages).find(k => cleanName.includes(k) || restaurant.includes(k));
   let specialImages = specialKey ? specialRestaurantImages[specialKey] : null;
-  const configKey = Object.keys(potMainConfigs).find(k => restaurant.includes(k));
+  const configKey = Object.keys(potMainConfigs).find(k => cleanName.includes(k) || restaurant.includes(k));
   let configData = configKey ? potMainConfigs[configKey] : null;
   
   if (!specialImages && configData && configData.img) {
@@ -350,7 +350,6 @@ function getRestaurantImages(restaurant) {
 function triggerRestaurantChange(restaurant) {
   populateMenu(restaurant);
   
-  // 優化：控制圖片按鈕顯示，取消彈窗阻塞
   const imgs = getRestaurantImages(restaurant);
   const btnView = el("btnViewMenuImg");
   if (imgs && imgs.length > 0) {
@@ -407,14 +406,18 @@ function populateMenu(restaurant) {
 
 function handleDynamicUI() {
   const restaurant = el("restaurant").value; 
-  const itemVal = el("menuItem").value;
   const container = el("potMainContainer");
   
   container.innerHTML = ""; 
   el("additionalRow").classList.add("hidden"); 
   el("friesRow").classList.add("hidden");
 
-  if (restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("豆坊")) {
+  // 自動去除日期前綴 (如 11/18 ) 進行手動輸入判定
+  const cleanName = restaurant.replace(/^\d{1,2}\/\d{1,2}\s*/, '').trim();
+  const items = MENUS[restaurant] || [];
+  const isCustomInput = (items.length === 0) || cleanName.includes("月宮寶盒烤肉飯") || cleanName.includes("豆坊");
+
+  if (isCustomInput) {
     el("menuItem").classList.add("hidden");       
     el("customItem").classList.remove("hidden");    
     el("priceRow").classList.remove("hidden");      
@@ -425,10 +428,17 @@ function handleDynamicUI() {
     el("priceRow").classList.add("hidden");
   }
 
+  const itemVal = el("menuItem").value;
   if (!itemVal || itemVal.startsWith("🔄")) return; 
-  const itemObj = JSON.parse(itemVal);
   
-  const configKey = Object.keys(potMainConfigs).find(k => restaurant.includes(k));
+  let itemObj;
+  try {
+    itemObj = JSON.parse(itemVal);
+  } catch(e) {
+    return;
+  }
+  
+  const configKey = Object.keys(potMainConfigs).find(k => cleanName.includes(k) || restaurant.includes(k));
   let configData = configKey ? potMainConfigs[configKey] : null;
 
   if (!configData) return;
@@ -458,7 +468,6 @@ function handleDynamicUI() {
     el("additionalLabel").textContent = targetConfig.label;
     
     if (targetConfig.isDoubleSelect) {
-      // 處理雙選單模式 (例如：主食/麵體 + 醬料)
       const opts1Html = targetConfig.options1.map(o => `<option value="${o}">${o}</option>`).join('');
       const opts2Html = targetConfig.options2.map(o => `<option value="${o}">${o}</option>`).join('');
 
@@ -536,7 +545,8 @@ el("addLunch").onclick = async () => {
   if(restaurant.startsWith("🔄")) return; 
   
   let itemObj = { cat: "手動輸入", name: "", price: 0 };
-  const isCustomInput = restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("豆坊");
+  const cleanName = restaurant.replace(/^\d{1,2}\/\d{1,2}\s*/, '').trim();
+  const isCustomInput = cleanName.includes("月宮寶盒烤肉飯") || cleanName.includes("豆坊") || (MENUS[restaurant] && MENUS[restaurant].length === 0);
   
   if (isCustomInput) {
     const customName = el("customItem").value.trim();
@@ -669,7 +679,8 @@ async function startEditOrder(id) {
   
   populateMenu(order.restaurant);
 
-  const isCustomInput = order.restaurant.includes("月宮寶盒烤肉飯") || order.restaurant.includes("豆坊");
+  const cleanName = order.restaurant.replace(/^\d{1,2}\/\d{1,2}\s*/, '').trim();
+  const isCustomInput = cleanName.includes("月宮寶盒烤肉飯") || cleanName.includes("豆坊");
   if (isCustomInput) {
     el("customItem").value = order.item;
     el("customPrice").value = order.price;

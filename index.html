@@ -414,7 +414,7 @@ function handleDynamicUI() {
   el("additionalRow").classList.add("hidden"); 
   el("friesRow").classList.add("hidden");
 
-  if (restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("光頭龍蝦沙拉堡")) {
+  if (restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("豆坊")) {
     el("menuItem").classList.add("hidden");       
     el("customItem").classList.remove("hidden");    
     el("priceRow").classList.remove("hidden");      
@@ -536,7 +536,7 @@ el("addLunch").onclick = async () => {
   if(restaurant.startsWith("🔄")) return; 
   
   let itemObj = { cat: "手動輸入", name: "", price: 0 };
-  const isCustomInput = restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("萬客臨");
+  const isCustomInput = restaurant.includes("月宮寶盒烤肉飯") || restaurant.includes("豆坊");
   
   if (isCustomInput) {
     const customName = el("customItem").value.trim();
